@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>BHSmk2 Flight Tests</title>
+<style id="gatecss">
+:root{--bg:#f9f9f7;--card:#ffffff;--ink:#0b0b0b;--ink2:#52514e;--line:#e6e5e1;--accent:#2a78d6;--bad:#d03b3b}
+@media (prefers-color-scheme: dark){:root{--bg:#0d0d0d;--card:#1f1f1e;--ink:#ffffff;--ink2:#c3c2b7;--line:#33332f;--accent:#3987e5;--bad:#e66767}}
+body{margin:0;min-height:100vh;display:grid;place-items:center;background:var(--bg);color:var(--ink);font:15px/1.5 system-ui,-apple-system,Segoe UI,Roboto,sans-serif;padding:16px;box-sizing:border-box}
+.box{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:28px;width:100%;max-width:380px}
+h1{font-size:20px;margin:0 0 4px}p{color:var(--ink2);margin:0 0 18px;font-size:14px}
+input{width:100%;box-sizing:border-box;padding:11px 12px;border-radius:9px;border:1px solid var(--line);background:var(--bg);color:var(--ink);font:inherit}
+button{margin-top:12px;width:100%;padding:11px;border-radius:9px;border:0;background:var(--accent);color:#fff;font:inherit;font-weight:600;cursor:pointer}
+button:disabled{opacity:.6;cursor:wait}
+.err{color:var(--bad);font-size:13px;min-height:18px;margin-top:10px}
+.small{font-size:12px;color:var(--ink2);margin-top:14px}
+</style>
+</head>
+<body>
+<form class="box" id="gate" autocomplete="off">
+  <h1>BHSmk2 Flight Test Center</h1>
+  <p>This page is encrypted. Enter the password to unlock it.</p>
+  <input id="pw" type="password" placeholder="Password" aria-label="Password" autofocus required>
+  <button id="go" type="submit">Unlock</button>
+  <div class="err" id="err" role="alert"></div>
+  <div class="small">Content is AES-256-GCM encrypted; it is decrypted only in your browser.</div>
+</form>
+<script>
+(function(){
+  const form=document.getElementById('gate'), pw=document.getElementById('pw'), go=document.getElementById('go'), err=document.getElementById('err');
+  let payload=null;
+  const loadPayload = () => payload || (payload = fetch('payload.bin', {cache:'no-cache'}).then(r=>{ if(!r.ok) throw new Error('fetch'); return r.arrayBuffer(); }));
+  loadPayload().catch(()=>{});
+  async function decrypt(pass){
+    const buf=new Uint8Array(await loadPayload());
+    const salt=buf.slice(0,16), iv=buf.slice(16,28), ct=buf.slice(28);
+    const base=await crypto.subtle.importKey('raw', new TextEncoder().encode(pass), 'PBKDF2', false, ['deriveKey']);
+    const key=await crypto.subtle.deriveKey({name:'PBKDF2', salt, iterations:310000, hash:'SHA-256'}, base, {name:'AES-GCM', length:256}, false, ['decrypt']);
+    const plain=await crypto.subtle.decrypt({name:'AES-GCM', iv}, key, ct);
+    const ds=new Blob([plain]).stream().pipeThrough(new DecompressionStream('gzip'));
+    return JSON.parse(await new Response(ds).text());
+  }
+  function loadScript(src){ return new Promise((res,rej)=>{ const s=document.createElement('script'); s.src=src; s.onload=res; s.onerror=rej; document.head.appendChild(s); }); }
+  form.addEventListener('submit', async e=>{
+    e.preventDefault(); err.textContent=''; go.disabled=true; go.textContent='Unlocking…';
+    let P;
+    try { P=await decrypt(pw.value); }
+    catch(x){ err.textContent = (x && x.message==='fetch') ? 'Could not load the encrypted data. Try reloading.' : 'Wrong password.'; go.disabled=false; go.textContent='Unlock'; pw.select(); return; }
+    go.textContent='Loading charts…';
+    try { await loadScript('plotly.min.js'); } catch(x){ err.textContent='Could not load the chart library.'; go.disabled=false; go.textContent='Unlock'; return; }
+    document.getElementById('gatecss').remove(); const st=document.createElement('style'); st.textContent=P.css; document.head.appendChild(st);
+    document.title='BHSmk2 Flight Test Center';
+    document.body.removeAttribute('style'); document.body.innerHTML=P.html;
+    window.__BHS_DATA=P.data;
+    (new Function(P.js))();
+  });
+})();
+</script>
+</body>
+</html>
