@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="robots" content="noindex,nofollow">
-<title>BHSmk2 Flight Tests</title>
+<title>flitetest</title>
 <style id="gatecss">
 :root{--bg:#f9f9f7;--card:#ffffff;--ink:#0b0b0b;--ink2:#52514e;--line:#e6e5e1;--accent:#2a78d6;--bad:#d03b3b}
 @media (prefers-color-scheme: dark){:root{--bg:#0d0d0d;--card:#1f1f1e;--ink:#ffffff;--ink2:#c3c2b7;--line:#33332f;--accent:#3987e5;--bad:#e66767}}
@@ -20,8 +20,8 @@ button:disabled{opacity:.6;cursor:wait}
 </head>
 <body>
 <form class="box" id="gate" autocomplete="off">
-  <h1>BHSmk2 Flight Test Center</h1>
-  <p>This page is encrypted. Enter the password to unlock it.</p>
+  <h1>flitetest</h1>
+  <p>BHSmk2 flight test center. This page is encrypted; enter the password to unlock it.</p>
   <input id="pw" type="password" placeholder="Password" aria-label="Password" autofocus required>
   <button id="go" type="submit">Unlock</button>
   <div class="err" id="err" role="alert"></div>
@@ -51,7 +51,7 @@ button:disabled{opacity:.6;cursor:wait}
     go.textContent='Loading charts…';
     try { await loadScript('plotly.min.js'); } catch(x){ err.textContent='Could not load the chart library.'; go.disabled=false; go.textContent='Unlock'; return; }
     document.getElementById('gatecss').remove(); const st=document.createElement('style'); st.textContent=P.css; document.head.appendChild(st);
-    document.title='BHSmk2 Flight Test Center';
+    document.title='flitetest · BHSmk2';
     document.body.removeAttribute('style'); document.body.innerHTML=P.html;
     window.__BHS_DATA=P.data;
     (new Function(P.js))();
