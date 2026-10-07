@@ -10,7 +10,7 @@ binding = "AI"
 [vars]
 REPO = "yoda-3x3/yoda-3x3.github.io"
 ALLOWED_ORIGINS = "https://yoda-3x3.github.io"
-GEMINI_MODEL = "gemini-2.5-flash"
+GEMINI_MODEL = "gemini-flash-latest"
 AI_MODEL = "@cf/meta/llama-3.3-70b-instruct-fp8-fast"
 
 # Secrets (set with `npx wrangler secret put NAME`, never put them in this file):

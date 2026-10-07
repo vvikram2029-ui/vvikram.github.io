@@ -21,7 +21,7 @@ Answer from the data in the CONTEXT below when you can, quoting numbers with uni
 const json = (o, status, cors) => new Response(JSON.stringify(o), { status, headers: { ...cors, 'content-type': 'application/json' } });
 
 async function gemini(env, system, messages) {
-  const model = env.GEMINI_MODEL || 'gemini-2.5-flash';
+  const model = env.GEMINI_MODEL || 'gemini-flash-latest';
   const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
     method: 'POST',
     headers: { 'content-type': 'application/json', 'x-goog-api-key': env.GEMINI_API_KEY },

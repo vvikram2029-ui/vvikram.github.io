@@ -33,4 +33,4 @@ Everything here fits in free plans and no credit card is needed.
    Optional but recommended: a free key from https://aistudio.google.com/apikey gives smarter answers and a bigger daily quota. Without it, chat uses Workers AI (Llama 3.3 70B).
 4. Put the worker URL in `flitetest-src/config.json` (`"worker_url": "https://flitetest.<you>.workers.dev"`) and push. The GitHub Action rebuilds the site so everyone gets it. Until then, you can paste the URL under **Import .ork → Connection settings**, which saves it in your browser only.
 
-Check it with `https://flitetest.<you>.workers.dev/health`.
+Check it with `https://flitetest.<you>.workers.dev/health` (live: https://flitetest.flitetest-bhs.workers.dev/health).
