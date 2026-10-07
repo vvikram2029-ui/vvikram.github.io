@@ -1,0 +1,19 @@
+name = "flitetest"
+main = "worker.js"
+compatibility_date = "2026-09-01"
+workers_dev = true
+
+# Free Workers AI (fallback chat model; also the only one if GEMINI_API_KEY is not set)
+[ai]
+binding = "AI"
+
+[vars]
+REPO = "yoda-3x3/yoda-3x3.github.io"
+ALLOWED_ORIGINS = "https://yoda-3x3.github.io"
+GEMINI_MODEL = "gemini-2.5-flash"
+AI_MODEL = "@cf/meta/llama-3.3-70b-instruct-fp8-fast"
+
+# Secrets (set with `npx wrangler secret put NAME`, never put them in this file):
+#   AUTH_HASH       required  - shown on the site under Import > Settings ("worker auth hash")
+#   GITHUB_TOKEN    uploads   - fine-grained PAT, only yoda-3x3.github.io, Contents: read & write, Actions: read
+#   GEMINI_API_KEY  optional  - free key from https://aistudio.google.com/apikey (smarter chat, bigger free quota)

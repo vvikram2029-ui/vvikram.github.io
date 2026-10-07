@@ -1,0 +1,68 @@
+<header class="app-head">
+  <div class="topbar">
+    <div class="tb-info"><span id="tbClock" class="tb-clock"></span><span id="tbWx" class="tb-wx" title="Current weather at the Brunswick, OH launch site (Open-Meteo)">Weather…</span><button id="tbFact" class="tb-fact" title="Click for another fun fact">Loading a fun fact…</button></div>
+    <div class="ticker" aria-label="Markets, sports and world news"><div class="ticker-track" id="tkTrack"></div></div>
+  </div>
+  <div class="head-row">
+    <div class="brand"><h1>flitetest</h1><span>BHSmk2 flight test center · ARC 2027 · OpenRocket 24.12 · Brunswick, OH · SI units</span></div>
+    <div class="vsel">
+      <label for="vpick">Rocket version</label>
+      <select id="vpick"></select>
+      <button class="btn primary" id="importBtn" title="Import an OpenRocket file and run the wind sweep">Import .ork</button>
+      <button class="btn" id="chatBtn" title="Ask the AI assistant about these results">Ask AI</button>
+      <button class="btn" id="themeBtn" title="Toggle light/dark" aria-label="Toggle light/dark">◐</button>
+      <button class="btn" id="lockBtn" title="Lock this page">Lock</button>
+    </div>
+  </div>
+  <div class="banner" id="banner" hidden></div>
+  <nav class="tabs" id="tabs"></nav>
+</header>
+<main id="main">
+  <section data-tab="overview"></section>
+  <section data-tab="design"></section>
+  <section data-tab="sweep"></section>
+  <section data-tab="profiles"></section>
+  <section data-tab="trajectory"></section>
+  <section data-tab="stability"></section>
+  <section data-tab="recovery"></section>
+  <section data-tab="compare"></section>
+  <section data-tab="data"></section>
+  <section data-tab="docs"></section>
+  <section data-tab="method"></section>
+</main>
+<div class="lightbox" id="lightbox"><img id="lbimg" alt="Engineering drawing, full size"></div>
+<div class="foot" id="foot"></div>
+
+<dialog id="importDlg" class="dlg" aria-labelledby="impTitle">
+  <div class="dlg-head"><h2 id="impTitle">Import an OpenRocket design</h2><button class="x" data-close aria-label="Close">×</button></div>
+  <div class="dlg-body">
+    <p class="sub">The .ork is encrypted with the site password in your browser, then a GitHub Action runs the full 123-flight wind sweep (OpenRocket 24.12, same settings as every other version) and publishes it for everyone. It takes about 2–3 minutes.</p>
+    <label class="drop" id="drop"><input type="file" id="orkFile" accept=".ork"><span id="dropTxt"><b>Choose an .ork file</b> or drop it here</span></label>
+    <div class="form2">
+      <label>Version name<input type="text" id="impName" maxlength="80" placeholder="e.g. BHSmk3 bigger chute"></label>
+      <label>Your name<input type="text" id="impBy" maxlength="40" placeholder="optional"></label>
+      <label>Rail length (m)<input type="number" id="impRail" value="1.83" min="0.5" max="5" step="0.01"></label>
+      <label class="wide">Note<input type="text" id="impNote" maxlength="600" placeholder="What changed in this version? (optional)"></label>
+    </div>
+    <div class="row"><button class="btn primary" id="impGo" disabled>Run sweep &amp; publish</button><span class="sub" id="impRoute"></span></div>
+    <ol class="prog" id="impProg" hidden></ol>
+    <details class="more"><summary>Recent imports</summary><div id="impLog"></div></details>
+    <details class="more"><summary>Remove an imported version</summary>
+      <div class="row"><select id="delPick"></select><button class="btn" id="delGo">Remove for everyone</button></div>
+      <p class="sub">Only versions added with Import can be removed here. The six original versions are kept.</p></details>
+    <details class="more" id="setDetails"><summary>Connection settings</summary>
+      <div class="form2">
+        <label class="wide">Helper worker URL (chat + uploads)<input type="text" id="setWorker" placeholder="https://flitetest.YOUR-NAME.workers.dev"></label>
+        <label class="wide">Personal GitHub token (optional, stays in this browser)<input type="password" id="setToken" placeholder="github_pat_…" autocomplete="off"></label>
+      </div>
+      <div class="row"><button class="btn" id="setSave">Save</button><button class="btn" id="hashCopy">Copy worker auth hash</button><span class="sub" id="setMsg"></span></div>
+      <p class="sub">Uploads go through the worker when it is set up, so teammates need nothing but the site password. A personal token (fine-grained, this repo only, Contents read/write) is used instead when entered. With neither, you get an encrypted file to upload on GitHub by hand.</p>
+    </details>
+  </div>
+</dialog>
+
+<aside class="chat" id="chat" aria-label="AI assistant" hidden>
+  <div class="chat-head"><div><b>flitetest AI</b><span class="sub" id="chatModel">answers from the data on this site</span></div><div><button class="x" id="chatClear" title="Clear conversation" aria-label="Clear conversation">⟲</button><button class="x" id="chatClose" aria-label="Close">×</button></div></div>
+  <div class="chat-log" id="chatLog" aria-live="polite"></div>
+  <form class="chat-in" id="chatForm"><textarea id="chatText" rows="2" placeholder="Ask about apogee, wind, ballast, rules…" aria-label="Message"></textarea><button class="btn primary" id="chatSend">Send</button></form>
+</aside>

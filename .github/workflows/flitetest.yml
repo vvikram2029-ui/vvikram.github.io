@@ -1,0 +1,73 @@
+name: flitetest
+
+# Runs when an encrypted .ork lands in flitetest-src/inbox (Import button on the site), when the app
+# source/config changes, or by hand. Sweeps each new rocket with OpenRocket, rebuilds the encrypted
+# flitetest/payload.bin and commits it; GitHub Pages then serves it to everyone.
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'flitetest-src/**'
+      - '.github/workflows/flitetest.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pages: write
+
+concurrency:
+  group: flitetest
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main  # a queued run must see commits made by the run before it
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Cache OpenRocket
+        id: orcache
+        uses: actions/cache@v4
+        with:
+          path: OpenRocket.jar
+          key: openrocket-24.12
+
+      - name: Download OpenRocket 24.12
+        if: steps.orcache.outputs.cache-hit != 'true'
+        run: curl -fsSL -o OpenRocket.jar https://github.com/openrocket/openrocket/releases/download/release-24.12/OpenRocket-24.12.jar
+
+      - name: Compile sweep engine
+        run: |
+          mkdir -p ft-classes
+          javac -nowarn -cp OpenRocket.jar -d ft-classes flitetest-src/tools/FliteTest.java
+
+      - name: Sweep inbox and rebuild payload
+        env:
+          SITE_PASSWORD: ${{ secrets.SITE_PASSWORD }}
+        run: node flitetest-src/pipeline.mjs --jar OpenRocket.jar --cls ft-classes 2>&1 | grep -Ev ' (INFO|DEBUG|TRACE) |^run [0-9]+ '
+
+      - name: Commit
+        run: |
+          git config user.name "flitetest-bot"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A flitetest/payload.bin flitetest-src/inbox
+          if git diff --cached --quiet; then echo "Nothing to commit"; exit 0; fi
+          git commit -m "flitetest: rebuild payload"
+          for i in 1 2 3; do git push && break; git pull --rebase origin main; done
+
+      - name: Ask GitHub Pages to redeploy
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh api -X POST "repos/${{ github.repository }}/pages/builds" || echo "(Pages will pick up the push on its own)"

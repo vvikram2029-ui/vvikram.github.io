@@ -38,8 +38,9 @@ button:disabled{opacity:.6;cursor:wait}
       : 'This browser is too old or is blocking the encryption features this page needs. Try an up-to-date Chrome, Edge, Firefox or Safari.';
     go.disabled=true;
   }
-  let payload=null;
-  const loadPayload = () => payload || (payload = fetch('payload.bin', {cache:'no-cache'}).then(r=>{ if(!r.ok) throw new Error('fetch'); return r.arrayBuffer(); }));
+  let payload=null, tag=null;
+  const tagOf = r => r.headers.get('etag') || r.headers.get('last-modified') || '';
+  const loadPayload = () => payload || (payload = fetch('payload.bin', {cache:'no-cache'}).then(r=>{ if(!r.ok) throw new Error('fetch'); tag=tagOf(r); return r.arrayBuffer(); }));
   loadPayload().catch(()=>{});
   async function decrypt(pass){
     const buf=new Uint8Array(await loadPayload());
@@ -51,6 +52,20 @@ button:disabled{opacity:.6;cursor:wait}
     return JSON.parse(await new Response(ds).text());
   }
   function loadScript(src){ return new Promise((res,rej)=>{ const s=document.createElement('script'); s.src=src; s.onload=res; s.onerror=rej; document.head.appendChild(s); }); }
+  function boot(P){
+    const FT=window.__FT; (FT.timers||[]).forEach(clearInterval); FT.timers=[];
+    const old=document.getElementById('gatecss')||document.getElementById('appcss'); if(old) old.remove();
+    const st=document.createElement('style'); st.id='appcss'; st.textContent=P.css; document.head.appendChild(st);
+    document.title='flitetest';
+    document.body.removeAttribute('style'); document.body.innerHTML=P.html;
+    window.__BHS_DATA=P.data;
+    (new Function(P.js))();
+  }
+  // Shared with the app (memory only): password for upload encryption / worker auth, live-update helpers.
+  window.__FT = { pw:null, timers:[], chat:[],
+    get tag(){ return tag; },
+    async remoteTag(){ const r=await fetch('payload.bin', {method:'HEAD', cache:'no-store'}); return r.ok ? tagOf(r) : null; },
+    async reload(){ payload=null; const P=await decrypt(window.__FT.pw); boot(P); } };
   form.addEventListener('submit', async e=>{
     e.preventDefault(); err.textContent=''; go.disabled=true; go.textContent='Unlocking…';
     let P;
@@ -58,11 +73,8 @@ button:disabled{opacity:.6;cursor:wait}
     catch(x){ err.textContent = (x && x.message==='fetch') ? 'Could not load the encrypted data. Try reloading.' : 'Wrong password.'; go.disabled=false; go.textContent='Unlock'; pw.select(); return; }
     go.textContent='Loading charts…';
     try { await loadScript('plotly.min.js'); } catch(x){ err.textContent='Could not load the chart library.'; go.disabled=false; go.textContent='Unlock'; return; }
-    document.getElementById('gatecss').remove(); const st=document.createElement('style'); st.textContent=P.css; document.head.appendChild(st);
-    document.title='flitetest · BHSmk2';
-    document.body.removeAttribute('style'); document.body.innerHTML=P.html;
-    window.__BHS_DATA=P.data;
-    (new Function(P.js))();
+    window.__FT.pw=pw.value;
+    boot(P);
   });
 })();
 </script>

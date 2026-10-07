@@ -19,7 +19,8 @@ import java.util.*;
  * Sweep: wind 0..20 kt in 0.5 kt steps from 225/270/315 deg, 10% turbulence.
  */
 public class FliteTest {
-    static String esc(String s) { return s.replace("\\", "\\\\").replace("\"", "\\\""); }
+    static String esc(String s) { return s.replace("\\", "\\\\").replace("\"", "\\\"").replaceAll("\\s", " "); }
+    static String num(double v) { return Double.isNaN(v) || Double.isInfinite(v) ? "null" : String.format(Locale.US, "%.2f", v); }
 
     public static void main(String[] a) throws Exception {
         String ork = a[0], outDir = a[1];
@@ -44,7 +45,8 @@ public class FliteTest {
         Simulation base = doc.getSimulations().get(0);
 
         // ---- static stability / mass (design-screen values) ----
-        FlightConfiguration fc = rocket.getSelectedConfiguration();
+        FlightConfiguration fc = rocket.getFlightConfiguration(base.getFlightConfigurationId());
+        if (fc == null) fc = rocket.getSelectedConfiguration();
         FlightConditions cond = new FlightConditions(fc); cond.setMach(0.3); cond.setAOA(0); cond.setTheta(0);
         WarningSet ws = new WarningSet();
         double cpx = new BarrowmanCalculator().getCP(fc, cond, ws).x;
@@ -68,6 +70,25 @@ public class FliteTest {
             if (!first) meta.append(",");
             first = false;
             meta.append(String.format(Locale.US, "[\"%s\",%.1f,%.1f,%.1f]", esc(c.getName()), c.getComponentMass() * 1000, c.getComponentLocations()[0].x * 1000, c.getLength() * 1000));
+        }
+        if (motorMass > 0) meta.append(String.format(Locale.US, "%s[\"MOTOR %s\",%.1f,null,null]", first ? "" : ",", esc(motor), motorMass));
+        // component detail for rule checks: [type, name, mass_g, x_mm, len_mm, od_mm, id_mm]
+        meta.append("],\"comps\":[");
+        first = true;
+        for (RocketComponent c : rocket) {
+            if (c instanceof Rocket || c instanceof AxialStage) continue;
+            double od = Double.NaN, id = Double.NaN;
+            if (c instanceof BodyTube) { od = ((BodyTube) c).getOuterRadius() * 2; id = ((BodyTube) c).getInnerRadius() * 2; }
+            else if (c instanceof InnerTube) { od = ((InnerTube) c).getOuterRadius() * 2; id = ((InnerTube) c).getInnerRadius() * 2; }
+            else if (c instanceof LaunchLug) { od = ((LaunchLug) c).getOuterRadius() * 2; id = ((LaunchLug) c).getInnerRadius() * 2; }
+            else if (c instanceof RailButton) { od = ((RailButton) c).getOuterDiameter(); id = ((RailButton) c).getInnerDiameter(); }
+            else if (c instanceof Parachute) { od = ((Parachute) c).getDiameter(); }
+            else if (c instanceof NoseCone) { od = ((NoseCone) c).getAftRadius() * 2; }
+            else if (c instanceof Transition) { od = ((Transition) c).getForeRadius() * 2; id = ((Transition) c).getAftRadius() * 2; }
+            if (!first) meta.append(",");
+            first = false;
+            meta.append(String.format(Locale.US, "[\"%s\",\"%s\",%.2f,%.1f,%.1f,%s,%s]", c.getClass().getSimpleName(), esc(c.getName()),
+                    c.getComponentMass() * 1000, c.getComponentLocations()[0].x * 1000, c.getLength() * 1000, num(od * 1000), num(id * 1000)));
         }
         meta.append("],\"load_warnings\":\"").append(esc(loader.getWarnings().toString())).append("\"}");
 
