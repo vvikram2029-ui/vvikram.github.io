@@ -4,6 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="robots" content="noindex,nofollow">
+<script>if(location.protocol==='http:'&&location.hostname!=='localhost'&&location.hostname!=='127.0.0.1'){location.replace('https://'+location.host+location.pathname+location.search+location.hash);}</script>
 <title>flitetest</title>
 <style id="gatecss">
 :root{--bg:#f9f9f7;--card:#ffffff;--ink:#0b0b0b;--ink2:#52514e;--line:#e6e5e1;--accent:#2a78d6;--bad:#d03b3b}
@@ -30,6 +31,13 @@ button:disabled{opacity:.6;cursor:wait}
 <script>
 (function(){
   const form=document.getElementById('gate'), pw=document.getElementById('pw'), go=document.getElementById('go'), err=document.getElementById('err');
+  if(!window.isSecureContext||!window.crypto||!crypto.subtle||typeof DecompressionStream==='undefined'){
+    const secureUrl='https://'+location.host+location.pathname;
+    err.innerHTML = !window.isSecureContext
+      ? 'This page must be opened over HTTPS. Use <a href="'+secureUrl+'">'+secureUrl+'</a>'
+      : 'This browser is too old or is blocking the encryption features this page needs. Try an up-to-date Chrome, Edge, Firefox or Safari.';
+    go.disabled=true;
+  }
   let payload=null;
   const loadPayload = () => payload || (payload = fetch('payload.bin', {cache:'no-cache'}).then(r=>{ if(!r.ok) throw new Error('fetch'); return r.arrayBuffer(); }));
   loadPayload().catch(()=>{});
