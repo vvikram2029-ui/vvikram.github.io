@@ -56,7 +56,7 @@ jobs:
       - name: Sweep inbox and rebuild payload
         env:
           SITE_PASSWORD: ${{ secrets.SITE_PASSWORD }}
-        run: node flitetest-src/pipeline.mjs --jar OpenRocket.jar --cls ft-classes 2>&1 | grep -Ev ' (INFO|DEBUG|TRACE) |^run [0-9]+ '
+        run: set -o pipefail; node flitetest-src/pipeline.mjs --jar OpenRocket.jar --cls ft-classes 2>&1 | grep -Ev ' (INFO|DEBUG|TRACE) |^run [0-9]+ '
 
       - name: Commit
         run: |
