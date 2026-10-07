@@ -123,7 +123,7 @@ function design(sec){
   head(sec,'Design & engineering drawing','General arrangement, parts list and mass breakdown for '+cur.name+'.');
   const g=el('div',{class:'grid g2'}); sec.appendChild(g);
   const c1=el('div',{class:'card'});
-  if(cur.drawing_img){ c1.innerHTML='<h3>Engineering drawing</h3><p class="sub">Click to open full size. PDF in Documents.</p>'; const im=el('img',{class:'drawing',src:fileUrl(cur.drawing_img),alt:'Engineering drawing of '+cur.name}); im.onclick=()=>{ $('#lbimg').src=im.src; $('#lightbox').classList.add('on'); }; c1.appendChild(im); }
+  if(cur.drawing_img){ c1.innerHTML=`<h3>Engineering drawing</h3><p class="sub">Click to open full size. ${cur.drawing_img.endsWith('.svg')?'Auto-generated from the .ork; SVG in Documents (prints at B size).':'PDF in Documents.'}</p>`; const im=el('img',{class:'drawing',src:fileUrl(cur.drawing_img),alt:'Engineering drawing of '+cur.name}); im.onclick=()=>{ $('#lbimg').src=im.src; $('#lightbox').classList.add('on'); }; c1.appendChild(im); }
   else { const dv=D.versions.filter(v=>v.drawing_img); c1.innerHTML=`<h3>Engineering drawing</h3><p class="note">No formal drawing was produced for this version.${dv.length?' Drawings exist for: '+dv.map(v=>v.short).join(', ')+'.':''}</p><div id="profileSvg"></div>`; }
   g.appendChild(c1);
   const c2=el('div',{class:'card'}); c2.innerHTML='<h3>Mass breakdown</h3><p class="sub">Component masses from OpenRocket (hover for values)</p><div id="massPlot" class="plot"></div>'; g.appendChild(c2);
@@ -324,7 +324,7 @@ function docs(sec){
   D.versions.forEach(v=>{ const c=el('div',{class:'card'}); c.innerHTML=`<h3>${v.name}</h3><p class="sub">${v.date} · ${v.motor}</p>`; const l=el('div',{class:'doclist'});
     v.files.filter(f=>!f.endsWith('.jpg')).forEach(f=>{ const d=el('div',{class:'doc'}); const ext=f.split('.').pop().toUpperCase();
       const kind = f.endsWith('.ork')?'OpenRocket design':f.endsWith('.csv')?'All 123 runs (CSV)':/drawing/.test(f)?'Engineering drawing':'Plot report (21 plots)';
-      d.innerHTML=`<div><div class="n">${f.split('/').pop()}</div><div class="m">${kind} · ${ext} · ${sizeOf(f)}</div></div><div class="acts">${ext==='PDF'?'<button class="btn" data-a="open">Open</button>':''}<button class="btn" data-a="dl">Download</button></div>`;
+      d.innerHTML=`<div><div class="n">${f.split('/').pop()}</div><div class="m">${kind} · ${ext} · ${sizeOf(f)}</div></div><div class="acts">${ext==='PDF'||ext==='SVG'?'<button class="btn" data-a="open">Open</button>':''}<button class="btn" data-a="dl">Download</button></div>`;
       d.querySelector('[data-a="dl"]').onclick=()=>download(f); const o=d.querySelector('[data-a="open"]'); if(o) o.onclick=()=>window.open(fileUrl(f),'_blank');
       l.appendChild(d); }); c.appendChild(l); g.appendChild(c); });
 }

@@ -15,6 +15,7 @@ import os from 'node:os';
 import { spawnSync } from 'node:child_process';
 import { webcrypto as wc } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
+import { drawingSvg } from './drawing.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const PAYLOAD = path.join(ROOT, 'flitetest/payload.bin');
@@ -57,7 +58,7 @@ function arcScore(apogee_m, ft) {
 }
 
 /* ---------- run one sweep ---------- */
-function sweep(orkPath, rail) {
+function sweep(orkPath, rail) { // rail = 'static' -> geometry/mass only (no sweep)
   const out = fs.mkdtempSync(path.join(os.tmpdir(), 'ft-'));
   const sep = process.platform === 'win32' ? ';' : ':';
   const res = spawnSync('java', ['-Xmx2g', '-Djava.awt.headless=true', '-cp', `${CLS}${sep}${JAR}`, 'FliteTest', orkPath, out, String(rail)],
@@ -66,7 +67,9 @@ function sweep(orkPath, rail) {
     const tail = ((res.stderr || '') + (res.stdout || '')).split('\n').filter(l => /Exception|Error|error:|Caused by/.test(l)).slice(0, 6).join(' | ');
     throw new Error('OpenRocket could not simulate this file' + (tail ? ': ' + tail.slice(0, 600) : ` (exit ${res.status}${res.error ? ', ' + res.error.message : ''})`));
   }
-  return { meta: JSON.parse(fs.readFileSync(path.join(out, 'meta.json'), 'utf8')), sum: parseCsv(path.join(out, 'summary.csv')), traj: parseCsv(path.join(out, 'trajectories.csv')) };
+  const meta = JSON.parse(fs.readFileSync(path.join(out, 'meta.json'), 'utf8'));
+  if (rail === 'static') return { meta };
+  return { meta, sum: parseCsv(path.join(out, 'summary.csv')), traj: parseCsv(path.join(out, 'trajectories.csv')) };
 }
 
 // 0.1 s steps for the first 12 s (boost/coast detail), 1 s after, plus the last sample.
@@ -137,6 +140,8 @@ function csvFor(sum) {
     (s.vdep ?? 0).toFixed(2), s.vhit.toFixed(2), s.srail === null ? '' : s.srail.toFixed(4)].join(',')).join('\n') + '\n';
 }
 
+const dwgNoFor = key => `FT-${key.toUpperCase().replace(/_/g, '-').slice(0, 14)}-001`;
+
 function buildVersion(req, res, keys) {
   const { meta, sum, traj } = res;
   const name = (req.name || meta.name || req.filename || 'Imported rocket').trim().slice(0, 80);
@@ -160,12 +165,15 @@ function buildVersion(req, res, keys) {
   const stem = base.replace(/\.ork$/i, '');
   const files = { [`${key}/${stem}.ork`]: { mime: 'application/octet-stream', b64: req.ork_b64 }, [`${key}/${stem}_wind_sweep_results.csv`]: { mime: 'text/csv', b64: Buffer.from(csvFor(rowsOut)).toString('base64') } };
   const tarc = a.checks.t80 && a.checks.eggs && a.checks.guide_ok;
+  const calm = rowsOut.find(x => x.dir === 270 && x.wind === 0) || rowsOut[0];
+  const dwg = `${key}/${stem}_drawing.svg`;
+  files[dwg] = { mime: 'image/svg+xml', b64: Buffer.from(drawingSvg({ meta, calm, dwgNo: dwgNoFor(key), version: { name, date: today(), filename: base, rail: req.rail, uploaded_by: req.by } })).toString('base64') };
   const version = {
     key, name, short: name.length > 22 ? name.slice(0, 21) + '…' : name, date: today(), rail: req.rail, mass: r(meta.mass_g, 1), length: r(meta.length_mm, 0),
     stab: r(meta.stab_cal, 2), cg: r(meta.cg_mm, 1), cp: r(meta.cp_mm, 1), ref: r(meta.ref_mm, 1), motor: meta.motor, impulse: r(meta.impulse_ns, 1),
     chute: a.chute, ballast: a.ballast, guide: a.guide, tarc, checks: a.checks,
     note: (req.note || '').trim().slice(0, 600) || `Imported ${today()}${req.by ? ' by ' + req.by : ''} from ${base}. Swept automatically on GitHub Actions.`,
-    imported: true, uploaded_by: req.by || '', summary: S, traj: T, parts: meta.parts, files: Object.keys(files),
+    imported: true, uploaded_by: req.by || '', summary: S, traj: T, parts: meta.parts, files: Object.keys(files), drawing_img: dwg,
   };
   return { version, files };
 }
@@ -219,6 +227,28 @@ for (const f of inbox) {
   console.log((entry.ok ? 'OK   ' : 'FAIL ') + f + ': ' + entry.msg);
   D.log.unshift(entry);
   fs.unlinkSync(full);
+}
+// Backfill drawings for versions that never had one (older versions and anything imported before drawings existed).
+for (const v of D.versions) {
+  if (v.drawing_img || v.drawing_failed) continue;
+  const ork = v.files.find(f => f.endsWith('.ork'));
+  if (!ork || !D.files[ork]) continue;
+  try {
+    const tmp = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'ork-')), 'rocket.ork');
+    fs.writeFileSync(tmp, Buffer.from(D.files[ork].b64, 'base64'));
+    const { meta } = sweep(tmp, 'static');
+    const i = v.summary.run.findIndex((_, j) => v.summary.dir[j] === 270 && v.summary.wind[j] === 0);
+    const calm = Object.fromEntries(Object.keys(v.summary).map(k => [k, v.summary[k][Math.max(0, i)]]));
+    const name = `${v.key}/${path.basename(ork, '.ork')}_drawing.svg`;
+    const plain = s => String(s ?? '').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&amp;/g, '&');
+    D.files[name] = { mime: 'image/svg+xml', b64: Buffer.from(drawingSvg({ meta, calm, dwgNo: dwgNoFor(v.key), version: { name: plain(v.short || v.name), date: v.date, filename: path.basename(ork), rail: v.rail, uploaded_by: plain(v.uploaded_by) } })).toString('base64') };
+    v.files.push(name);
+    v.drawing_img = name;
+    console.log(`Drew ${v.key}`);
+  } catch (e) {
+    v.drawing_failed = true;
+    console.log(`Could not draw ${v.key}: ${e.message}`);
+  }
 }
 D.log = D.log.slice(0, 60);
 D.generated = today();

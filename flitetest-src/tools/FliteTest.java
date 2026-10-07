@@ -14,7 +14,7 @@ import java.util.*;
 
 /**
  * flitetest sweep engine.
- * Usage: FliteTest rocket.ork outDir railLength_m [lat lon alt_m]
+ * Usage: FliteTest rocket.ork outDir (railLength_m | static) [lat lon alt_m]
  * Writes summary.csv, trajectories.csv and meta.json (stability, mass, parts, motor).
  * Sweep: wind 0..20 kt in 0.5 kt steps from 225/270/315 deg, 10% turbulence.
  */
@@ -24,7 +24,8 @@ public class FliteTest {
 
     public static void main(String[] a) throws Exception {
         String ork = a[0], outDir = a[1];
-        double rail = Double.parseDouble(a[2]);
+        boolean staticOnly = a[2].equals("static"); // geometry/mass/stability only, no sweep (used to draw older versions)
+        double rail = staticOnly ? 1.83 : Double.parseDouble(a[2]);
         double lat = a.length > 3 ? Double.parseDouble(a[3]) : 41.2381;
         double lon = a.length > 4 ? Double.parseDouble(a[4]) : -81.8418;
         double alt = a.length > 5 ? Double.parseDouble(a[5]) : 350;
@@ -85,12 +86,47 @@ public class FliteTest {
             else if (c instanceof Parachute) { od = ((Parachute) c).getDiameter(); }
             else if (c instanceof NoseCone) { od = ((NoseCone) c).getAftRadius() * 2; }
             else if (c instanceof Transition) { od = ((Transition) c).getForeRadius() * 2; id = ((Transition) c).getAftRadius() * 2; }
+            else if (c instanceof RingComponent) { od = ((RingComponent) c).getOuterRadius() * 2; id = ((RingComponent) c).getInnerRadius() * 2; }
+            // geometry for the auto-generated drawing (mm)
+            StringBuilder g = new StringBuilder("{");
+            g.append(String.format(Locale.US, "\"qty\":%d", c.getInstanceCount()));
+            try {
+                Object m = c.getClass().getMethod("getMaterial").invoke(c);
+                if (m != null) g.append(",\"mat\":\"").append(esc(((info.openrocket.core.material.Material) m).getName())).append("\"");
+            } catch (Exception e) { }
+            if (c instanceof Transition) { // includes NoseCone: radius profile, 25 samples from fore to aft
+                Transition tr = (Transition) c;
+                g.append(",\"shape\":\"").append(tr.getShapeType().name()).append("\",\"prof\":[");
+                for (int i = 0; i <= 24; i++) g.append(i > 0 ? "," : "").append(num(tr.getRadius(tr.getLength() * i / 24.0) * 1000));
+                g.append("]");
+            }
+            if (c instanceof FinSet) {
+                FinSet f = (FinSet) c;
+                g.append(String.format(Locale.US, ",\"n\":%d,\"t\":%s,\"br\":%s,\"pts\":[", f.getFinCount(), num(f.getThickness() * 1000), num(f.getBodyRadius() * 1000)));
+                var pts = f.getFinPoints();
+                for (int i = 0; i < pts.length; i++) g.append(i > 0 ? "," : "").append("[").append(num(pts[i].x * 1000)).append(",").append(num(pts[i].y * 1000)).append("]");
+                g.append("]");
+            }
+            if (c instanceof MassObject) g.append(",\"r\":").append(num(((MassObject) c).getRadius() * 1000));
+            if (c instanceof InnerTube) g.append(",\"overhang\":").append(num(((InnerTube) c).getMotorOverhang() * 1000));
+            g.append("}");
             if (!first) meta.append(",");
             first = false;
-            meta.append(String.format(Locale.US, "[\"%s\",\"%s\",%.2f,%.1f,%.1f,%s,%s]", c.getClass().getSimpleName(), esc(c.getName()),
-                    c.getComponentMass() * 1000, c.getComponentLocations()[0].x * 1000, c.getLength() * 1000, num(od * 1000), num(id * 1000)));
+            meta.append(String.format(Locale.US, "[\"%s\",\"%s\",%.2f,%.1f,%.1f,%s,%s,%s]", c.getClass().getSimpleName(), esc(c.getName()),
+                    c.getComponentMass() * 1000, c.getComponentLocations()[0].x * 1000, c.getLength() * 1000, num(od * 1000), num(id * 1000), g));
         }
-        meta.append("],\"load_warnings\":\"").append(esc(loader.getWarnings().toString())).append("\"}");
+        meta.append("]");
+        for (MotorConfiguration mc : fc.getActiveMotors()) {
+            RocketComponent mount = (RocketComponent) mc.getMount();
+            double len = mc.getMotor().getLength();
+            double aft = mount.getComponentLocations()[0].x + mount.getLength() + mc.getMount().getMotorOverhang();
+            meta.append(String.format(Locale.US, ",\"motor_geo\":{\"len\":%s,\"d\":%s,\"x\":%s,\"delay\":%s}", num(len * 1000), num(mc.getMotor().getDiameter() * 1000), num((aft - len) * 1000), num(mc.getEjectionDelay())));
+        }
+        meta.append(",\"load_warnings\":\"").append(esc(loader.getWarnings().toString())).append("\"}");
+        if (staticOnly) {
+            try (PrintWriter m = new PrintWriter(new FileWriter(outDir + "/meta.json"))) { m.print(meta); }
+            System.exit(0);
+        }
 
         PrintWriter sum = new PrintWriter(new FileWriter(outDir + "/summary.csv"));
         sum.println("run,wind_kt,wind_mps,wind_from_deg,apogee_m,max_vel_mps,max_mach,time_to_apogee_s,flight_time_s,rod_exit_vel_mps,deploy_vel_mps,ground_hit_vel_mps,land_x_m,land_y_m,drift_m,apogee_x_m,apogee_y_m,min_stability_cal,stability_rod_exit_cal,max_accel_mps2");
