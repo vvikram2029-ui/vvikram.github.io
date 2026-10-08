@@ -8,8 +8,8 @@ workers_dev = true
 binding = "AI"
 
 [vars]
-REPO = "yoda-3x3/yoda-3x3.github.io"
-ALLOWED_ORIGINS = "https://yoda-3x3.github.io"
+REPO = "https://omarsalmon.pages.dev/"
+ALLOWED_ORIGINS = "https://omarsalmon.pages.dev/"
 GEMINI_MODEL = "gemini-flash-latest"
 AI_MODEL = "@cf/meta/llama-3.3-70b-instruct-fp8-fast"
 
