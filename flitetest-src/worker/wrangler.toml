@@ -8,12 +8,7 @@ workers_dev = true
 binding = "AI"
 
 [vars]
-REPO = "https://omarsalmon.pages.dev/"
-ALLOWED_ORIGINS = "https://omarsalmon.pages.dev/"
+REPO = "https://omarsalmon.pages.dev"
+ALLOWED_ORIGINS = "https://omarsalmon.pages.dev"
 GEMINI_MODEL = "gemini-flash-latest"
 AI_MODEL = "@cf/meta/llama-3.3-70b-instruct-fp8-fast"
-
-# Secrets (set with `npx wrangler secret put NAME`, never put them in this file):
-#   AUTH_HASH       required  - shown on the site under Import > Settings ("worker auth hash")
-#   GITHUB_TOKEN    uploads   - fine-grained PAT, only yoda-3x3.github.io, Contents: read & write, Actions: read
-#   GEMINI_API_KEY  optional  - free key from https://aistudio.google.com/apikey (smarter chat, bigger free quota)
