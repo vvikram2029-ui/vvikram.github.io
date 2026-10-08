@@ -6,24 +6,17 @@ export default {
       "Access-Control-Allow-Headers": "Content-Type, Authorization",
     };
 
-    // 1. Handle browser preflight CORS checks
+    // Handle preflight OPTIONS checks for any path
     if (request.method === "OPTIONS") {
       return new Response(null, { headers: corsHeaders, status: 204 });
     }
 
-    // 2. Handle POST requests from the Ask AI chat prompt
+    // Accept POST requests on any route (/chat, /ask, /, etc.)
     if (request.method === "POST") {
       try {
-        const body = await request.json();
-        // Process AI request or prompt using body.prompt / body.message
-
-        const aiResponse = { answer: "Worker processed your request successfully!" };
-
-        return new Response(JSON.stringify(aiResponse), {
-          headers: {
-            ...corsHeaders,
-            "Content-Type": "application/json",
-          },
+        return new Response(JSON.stringify({ answer: "Worker processed your request successfully!" }), {
+          status: 200,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       } catch (err) {
         return new Response(JSON.stringify({ error: err.message }), {
@@ -33,8 +26,8 @@ export default {
       }
     }
 
-    // Return default response for GET
     return new Response(JSON.stringify({ status: "Worker is live!" }), {
+      status: 200,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   },
