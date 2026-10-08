@@ -1,15 +1,13 @@
 export default {
   async fetch(request, env, ctx) {
-    // Read origin setting from wrangler.toml or fall back to production domain
-    const allowedOrigin = env.ALLOWED_ORIGINS || "https://omarsalmon.pages.dev";
-
+    // Universal CORS headers to eliminate preflight mismatches
     const corsHeaders = {
-      "Access-Control-Allow-Origin": allowedOrigin,
+      "Access-Control-Allow-Origin": "*",
       "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
       "Access-Control-Allow-Headers": "Content-Type, Authorization",
     };
 
-    // 1. Handle browser CORS preflight checks
+    // 1. Handle browser preflight checks (OPTIONS requests)
     if (request.method === "OPTIONS") {
       return new Response(null, {
         status: 204,
@@ -21,8 +19,8 @@ export default {
     if (request.method === "POST") {
       try {
         const body = await request.json().catch(() => ({}));
-        
-        // Support prompt, message, or chat message array payloads
+
+        // Accept prompt, message, or chat message array payloads
         const prompt =
           body.prompt ||
           body.message ||
@@ -42,7 +40,7 @@ export default {
 
         let answerText = "";
 
-        // Check if Cloudflare Workers AI binding is configured
+        // Query Cloudflare Workers AI binding if present
         if (env.AI) {
           const modelName = env.AI_MODEL || "@cf/meta/llama-3.3-70b-instruct-fp8-fast";
 
@@ -59,8 +57,8 @@ export default {
 
           answerText = aiResponse.response || "No response text returned from AI model.";
         } else {
-          // Fallback if AI binding is not yet attached in dashboard
-          answerText = "Worker received prompt successfully! (Note: 'AI' binding is missing in wrangler.toml/dashboard).";
+          // Fallback message if AI binding is not configured in wrangler.toml/dashboard
+          answerText = "Worker received prompt successfully! (Note: 'AI' binding is missing in wrangler.toml or dashboard).";
         }
 
         return new Response(
@@ -81,7 +79,7 @@ export default {
       }
     }
 
-    // 3. Default GET response for status check
+    // 3. Status endpoint for standard GET requests
     return new Response(
       JSON.stringify({ status: "Worker is live!", service: "flitetest" }),
       {
